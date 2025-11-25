@@ -1,5 +1,7 @@
 # AutoSplit – Massa-native Revenue Splits
 
+<img src="frontend/src/features/images (2).png" alt="AutoSplit" width="160" />
+
 AutoSplit is an end-to-end revenue sharing dApp that lives entirely on the
 Massa blockchain. Every team gets its own smart-contract controlled wallet:
 when a client pays, coins are instantly split between members according to
@@ -18,6 +20,15 @@ their on-chain percentages, and any future changes must pass a DAO-like vote.
 - **Role-specific dashboards:** Clients see a pay page, owners manage teams,
   and contributors track earnings + vote on proposals, all powered by the Massa
   contract responses.
+
+## How it works (end-to-end)
+
+- **Owner creates a team** in the dashboard and adds members with their shares.
+- **Owner shares a pay link or QR** with the client (`/pay/:teamId`).
+- **Client pays in MASSA**; the contract validates that the split totals 100% and
+  transfers each member’s share instantly.
+- **Members** see updated earnings and can **vote on proposals** to change splits.
+- **ASC** automatically executes approved proposals once voting ends.
 
 ## Built on Massa
 
@@ -62,6 +73,12 @@ npm run dev
 Before calling mutations such as `createTeam`, ensure your Massa Station account
 has enough Buildnet MAS to cover storage fees—the UI will automatically send
 the required coins with each transaction.
+
+## Connecting the frontend to your deployed contract
+
+- Set `VITE_AUTOSPLIT_ADDRESS` in `frontend/.env` to the deployed contract address.
+- Start Massa Station and enable the Massa Wallet plugin.
+- Use the Owner dashboard to create teams and configure splits.
 
 ## Production readiness checklist
 
