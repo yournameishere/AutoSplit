@@ -1,0 +1,18 @@
+.hero-glow {
+  position: absolute;
+  inset: 0;
+  filter: blur(120px);
+  opacity: 0.65;
+  background: radial-gradient(circle at 20% 20%, rgba(255, 93, 158, 0.25), transparent 55%),
+    radial-gradient(circle at 80% 0%, rgba(22, 217, 227, 0.35), transparent 50%),
+    radial-gradient(circle at 60% 60%, rgba(79, 89, 255, 0.25), transparent 45%);
+  pointer-events: none;
+}
+
+.noise {
+  position: fixed;
+  inset: 0;
+  opacity: 0.12;
+  pointer-events: none;
+  background-image: url('data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="%23ffffff" fill-opacity="0.08" fill-rule="evenodd"%3E%3Ccircle cx="3" cy="3" r="3"/%3E%3Ccircle cx="33" cy="27" r="2"/%3E%3Ccircle cx="13" cy="47" r="1"/%3E%3Ccircle cx="53" cy="7" r="2"/%3E%3C/g%3E%3C/svg%3E');
+}

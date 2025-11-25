@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #f6f7fb;
+  background-color: #05060f;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #12163a 0%, #05060f 55%);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.glass {
+  @apply bg-white/5 backdrop-blur-2xl border border-white/10 shadow-glass;
+}
+
+.tag-chip {
+  @apply inline-flex items-center rounded-full border border-white/15 px-3 py-1 text-xs uppercase tracking-wide text-white/80;
+}

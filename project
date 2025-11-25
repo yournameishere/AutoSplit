@@ -1,0 +1,534 @@
+🏷 App Name & Core Idea
+
+Name: AutoSplit
+Tagline: “Payments in. Fair splits out. Automatically.”
+
+Core:
+1 wallet / contract per Team/Project →
+Whenever someone pays into that team → Massa smart contract instantly and trustlessly splits it between members based on percentages.
+
+No manual calculation. No Excel. No manager needed.
+
+👀 USER POV – How it works for each role
+1️⃣ Client (Person who pays the team)
+
+Clients don’t need a full dashboard, just a simple pay page.
+
+Flow:
+
+Client receives a payment link like:
+/pay/:teamId or /pay/:invoiceId
+
+They see:
+
+Team name
+
+Description / Invoice reference (“Website redesign”, “YouTube video edit #12”)
+
+Split summary (optional: “This payment will be shared across 4 team members automatically.”)
+
+They:
+
+Enter amount (e.g., 100 MASSA)
+
+Click “Pay with Massa”
+
+Confirm transaction in wallet
+
+What happens behind the scenes:
+
+The smart contract receives 100 MASSA
+
+Immediately (or via ASC loop) splits:
+
+Dev: 50 → address₁
+
+Designer: 20 → address₂
+
+Editor: 20 → address₃
+
+Manager: 10 → address₄
+
+Client is done. No account required.
+
+2️⃣ Team Owner / Admin Dashboard
+
+Route: /dashboard/owner
+
+This is for the person who creates teams & defines splits.
+
+🔹 Owner Main Features
+
+Tabs/routes inside:
+
+/dashboard/owner/overview
+
+/dashboard/owner/teams
+
+/dashboard/owner/team/:teamId
+
+/dashboard/owner/payments
+
+/dashboard/owner/members
+
+/dashboard/owner/proposals (for DAO-like % changes)
+
+/dashboard/owner/settings
+
+a) Create Team / Project
+
+Route: /dashboard/owner/teams/new
+
+Owner fills:
+
+Team / Project name
+
+Description
+
+Default currency (MASSA)
+
+Team avatar/logo
+
+Optional: tags (agency, YouTube, freelance)
+
+Smart contract call:
+
+createTeam(name, metadataURI)
+
+
+Returns teamId.
+
+Frontend then lets owner add members and share %.
+
+b) Add Members & Set Splits
+
+Still inside /dashboard/owner/team/:teamId/setup:
+
+Form fields:
+
+Member wallet address
+
+Role (designer, dev, editor, etc.)
+
+Percentage (e.g., 20%)
+
+Contract function:
+
+addMember(teamId, memberAddress, percentage, role)
+
+
+The contract will:
+
+Sum all percentages → must equal 100 (or 10000 for basis points)
+
+Store members in TeamMembers map.
+
+If they want to change later, they don’t directly edit it; they create a proposal (explained below).
+
+c) Generate Payment Link / QR
+
+From /dashboard/owner/team/:teamId:
+
+Show Pay URL: /pay/:teamId
+
+Button: “Copy link” or “Generate QR”
+
+Owners send this to clients.
+
+d) View Payments & Analytics
+
+Route: /dashboard/owner/payments
+
+Shows:
+
+List of all incoming payments:
+
+amount
+
+from address
+
+timestamp
+
+split details
+
+fee cut for team owner (if any)
+
+Each payment is stored in contract as:
+
+Payment {
+  id: u64;
+  teamId: u64;
+  payer: string;
+  amount: u64;
+  timestamp: u64;
+}
+
+
+Also show:
+
+Total earned per team
+
+Total paid to each member
+
+Graphs (handled in frontend using on-chain data or indexer)
+
+e) Proposals to Change Splits (DAO-style)
+
+Route: /dashboard/owner/proposals
+
+To change percentages fairly (so owner can’t just rug team), we use voting.
+
+Flow:
+
+Owner clicks “Create split change proposal”
+
+Selects team + new percentages
+
+Contract function:
+
+createSplitProposal(teamId, newAllocations[], reason)
+
+
+Members vote:
+
+voteOnProposal(proposalId, support: bool)
+
+
+After voting period, ASC executes:
+
+If approved:
+
+applyProposal(proposalId)
+
+
+Updates team member percentages.
+
+This is where Massa Autonomous Smart Contracts shine:
+
+ASC checks time & executes proposal automatically once voting ends.
+
+3️⃣ Team Member Dashboard
+
+Route: /dashboard/member
+
+This is for normal users (the people getting paid).
+
+🔹 Member Main Features
+
+Tabs/routes:
+
+/dashboard/member/overview – summary across all teams
+
+/dashboard/member/teams – teams they belong to
+
+/dashboard/member/payments – list of what they received
+
+/dashboard/member/proposals – vote on changes
+
+/dashboard/member/settings
+
+a) Overview
+
+Shows:
+
+Total earnings (all time)
+
+Earnings this month
+
+Active teams they’re in
+
+Next expected payment date (comes from ASC if periodic payments exist)
+
+b) Teams
+
+Route: /dashboard/member/teams
+
+Shows list:
+
+Team name
+
+Role
+
+% share in that team
+
+Link to pay page (they can share with clients too)
+
+c) Payments
+
+Route: /dashboard/member/payments
+
+Each row:
+
+Team name
+
+Received amount
+
+Payer (if not private)
+
+Date
+
+Reference (e.g., “Video 7 edit”)
+
+If we use “pull pattern”, they can click Withdraw to move from contract balance → wallet.
+
+d) Proposals & Voting
+
+Route: /dashboard/member/proposals
+
+Members see:
+
+Upcoming or active proposals for their teams
+
+Old/accepted/rejected proposals
+
+They can click:
+
+✅ Approve
+
+❌ Reject
+
+Calls:
+
+voteOnProposal(proposalId, support)
+
+
+ASC later auto-applies.
+
+🧠 MASSA SMART CONTRACT DESIGN
+
+We’ll split logic into 3 core contracts (or 1 with modules, but logically 3):
+
+TeamRegistry – teams + members + percentages
+
+PaymentSplitter – receives funds & splits payments
+
+Governance – proposals and voting for split changes
+
+And ASC behavior:
+
+Auto-exec proposals after deadline
+
+Auto-generate monthly summaries (optional)
+
+1️⃣ TeamRegistry Contract
+
+Stores:
+
+Team {
+  id: u64;
+  owner: string;       // creator of the team
+  metadataURI: string; // name, description stored in JSON off-chain
+  isActive: bool;
+}
+
+TeamMember {
+  teamId: u64;
+  member: string;
+  percentage: u16;     // e.g. 2000 = 20.00% if using basis points
+  role: string;
+}
+
+
+Key functions:
+
+createTeam(metadataURI: string): u64
+addMember(teamId: u64, member: string, percentage: u16, role: string)
+removeMember(teamId: u64, member: string)
+getTeam(teamId: u64): Team
+getMembers(teamId: u64): TeamMember[]
+
+
+Validation:
+
+Total percentages for a team must always sum to 100% (or 10,000 bp).
+
+2️⃣ PaymentSplitter Contract
+
+Handles actual receipt & distribution of funds.
+
+Core function when client pays:
+
+payTeam(teamId: u64, reference: string) // msg.value = amount
+
+
+Logic:
+
+Ensure teamId exists & active
+
+Read all TeamMember entries
+
+For each member:
+
+memberShare = amount * percentage / 10000
+
+Option A: send immediately (transfer(member, memberShare))
+
+Option B: add to internal balance:
+
+balances[member] += memberShare;
+
+
+Store Payment struct for history.
+
+If using internal balances, we expose:
+
+withdrawMyEarnings()
+getMyBalance(): u64
+
+3️⃣ Governance Contract (for split changes)
+
+Data:
+
+Proposal {
+  id: u64;
+  teamId: u64;
+  creator: string;
+  newAllocations: Allocation[]; // { member, percentage }
+  endTime: u64;
+  yesVotes: u32;
+  noVotes: u32;
+  executed: bool;
+}
+
+Allocation {
+  member: string;
+  percentage: u16;
+}
+
+
+Functions:
+
+createSplitProposal(teamId, newAllocations[], reasonURI)
+voteOnProposal(proposalId, support)
+executeProposal(proposalId) // called by ASC when endTime reached
+
+
+Who can vote?
+
+Members of that team (including owner)
+
+How ASC fits in:
+
+We schedule an autonomous call that periodically runs:
+
+checkAndExecuteProposals()
+
+
+This function:
+
+Finds proposals where endTime <= now AND executed == false
+
+If yesVotes > noVotes → updates TeamRegistry percentages
+
+Sets executed = true
+
+No one needs to manually trigger execution → fully autonomous governance.
+
+🔁 AUTONOMOUS BEHAVIOR (ASC) SUMMARY
+
+Massa’s ASC can:
+
+Regularly scan proposals & auto-execute approved ones.
+
+Auto-generate monthly summary stats:
+
+Total paid per team
+
+Total paid per member
+(you can store counters on-chain for quick access)
+
+Optionally, auto-disable inactive teams (no payment in X months).
+
+All of this can be done via scheduled/deferred calls in Massa.
+
+🧱 APP ARCHITECTURE (High-Level)
+1. Frontend (DeWeb)
+
+Framework: React / Next.js / Vite + React
+
+Hosted as static files on Massa DeWeb
+
+Interacts with contracts via Massa JS SDK
+
+Main routes:
+
+/ – Landing (What is AutoSplit, CTA: “Create a Team”)
+
+/auth/login – connect wallet, choose role view
+
+/auth/signup – optional extra metadata
+
+/pay/:teamId – client payment page
+
+/dashboard/owner/* – owner dashboard
+
+/dashboard/member/* – member dashboard
+
+2. On-Chain (Massa)
+
+Contracts:
+
+TeamRegistry
+
+PaymentSplitter
+
+Governance
+
+Deployed on Massa buildnet/mainnet depending on hackathon setup.
+
+3. (Optional) Indexer / Backend
+
+Not required for core logic but helpful for:
+
+Fast search and filtering
+
+Analytics charts
+
+Could be:
+
+Simple Node.js server: listens to events/logs, stores them in DB
+
+Frontend fetches from this + on-chain calls for validation
+
+But for hackathon, you can skip this and just read from contracts.
+
+🌊 Complete Flow Summary
+When setting up a new team:
+
+Owner connects wallet → /dashboard/owner
+
+Clicks Create Team → createTeam()
+
+Adds members + percentages → addMember()
+
+Team is now ready to receive payments.
+
+Owner copies payment URL /pay/:teamId and shares with client.
+
+When client pays:
+
+Opens /pay/:teamId
+
+Enters amount, pays via Massa
+
+payTeam(teamId) called
+
+Contract splits funds among members according to percentages.
+
+Member dashboards update earnings.
+
+When owner wants to change split:
+
+Goes to /dashboard/owner/proposals
+
+Creates proposal with new percentages → createSplitProposal()
+
+Members visit /dashboard/member/proposals and vote.
+
+ASC later auto-executes:
+
+Checks votes
+
+If approved → updates TeamRegistry members’ percentages.
+
+No one needs to trust the owner—rules are on-chain.
