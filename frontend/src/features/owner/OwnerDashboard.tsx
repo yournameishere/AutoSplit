@@ -45,6 +45,7 @@ export default function OwnerDashboard() {
     role: '',
     percentage: 0,
   });
+  const [percentageMode, setPercentageMode] = useState<'percent' | 'bp'>('percent');
   const [bulkMembers, setBulkMembers] = useState('');
   const [bulkEqualSplit, setBulkEqualSplit] = useState(true);
   const [bulkPending, setBulkPending] = useState(false);
@@ -115,9 +116,14 @@ export default function OwnerDashboard() {
       if (!memberForm.teamId && !currentTeamId) {
         throw new Error('Select a team first');
       }
+      const pct =
+        percentageMode === 'percent'
+          ? Math.round(memberForm.percentage * 100)
+          : memberForm.percentage;
       return addMemberMutation(contract, {
         ...memberForm,
         teamId: memberForm.teamId || currentTeamId!,
+        percentage: pct,
       });
     },
     onSuccess: () => {
@@ -357,7 +363,7 @@ export default function OwnerDashboard() {
                 }
               />
               <InputField
-                label="Percentage (basis points)"
+                label="Percentage"
                 type="number"
                 value={String(memberForm.percentage)}
                 onChange={(value) =>
@@ -367,6 +373,27 @@ export default function OwnerDashboard() {
                   }))
                 }
               />
+              <div className="text-xs text-white/50">
+                Input mode: {percentageMode === 'percent' ? '% (e.g. 40)' : 'basis points (e.g. 4000)'}
+              </div>
+              <div className="flex items-center gap-3 text-xs text-white/70">
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="radio"
+                    checked={percentageMode === 'percent'}
+                    onChange={() => setPercentageMode('percent')}
+                  />
+                  %
+                </label>
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="radio"
+                    checked={percentageMode === 'bp'}
+                    onChange={() => setPercentageMode('bp')}
+                  />
+                  bp
+                </label>
+              </div>
               <button
                 type="submit"
                 className="w-full rounded-2xl bg-white/90 px-4 py-3 font-semibold text-night disabled:opacity-40"

@@ -54,6 +54,9 @@ export default function PayPage() {
     [team],
   );
 
+  const isSplitValid = (totalSplit ?? 0) === 10000 && (team?.members.length ?? 0) > 0;
+  const looksLikePercent = (totalSplit ?? 0) === 100 && (team?.members.length ?? 0) > 0;
+
   if (isLoading) {
     return (
       <div className="text-white/60">Loading team data on Massa…</div>
@@ -137,10 +140,18 @@ export default function PayPage() {
           Funds are split on-chain instantly. Bring testnet MASSA and a
           burner secret key.
         </p>
+        {!isSplitValid && (
+          <div className="mt-4 rounded-2xl border border-red-400/30 bg-red-900/20 p-4 text-sm text-red-200">
+            {looksLikePercent
+              ? 'Team split looks like percentages (e.g., 40,30,20,10). Please set basis points (e.g., 4000,3000,2000,1000) in the Owner dashboard.'
+              : 'Team split is invalid. Ensure members exist and totals equal 100% before paying.'}
+          </div>
+        )}
         <form
           className="mt-6 space-y-5"
           onSubmit={(event) => {
             event.preventDefault();
+            if (!isSplitValid) return;
             mutation.mutateAsync();
           }}
         >
@@ -174,7 +185,7 @@ export default function PayPage() {
           </label>
           <button
             type="submit"
-            disabled={!contract || mutation.isPending}
+            disabled={!contract || mutation.isPending || !isSplitValid}
             className="w-full rounded-2xl bg-gradient-to-r from-aurora to-sunset px-6 py-3 font-semibold text-night shadow-lg disabled:cursor-not-allowed disabled:opacity-40"
           >
             {mutation.isPending ? 'Sending…' : 'Pay now'}
