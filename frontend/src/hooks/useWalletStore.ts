@@ -1,38 +1,41 @@
 import { create } from 'zustand';
-import type { Account, SmartContract } from '@massalabs/massa-web3';
+import type { Provider, SmartContract } from '@massalabs/massa-web3';
 import {
-  getAccountFromSecret,
-  getWritableContract,
+  connectMassaStationAccount,
+  getContractFromProvider,
 } from '../lib/massa';
 
+const LOCAL_STORAGE_KEY = 'autosplit:wallet';
+
 type WalletState = {
-  account?: Account;
+  provider?: Provider;
   contract?: SmartContract;
   address?: string;
   status: 'idle' | 'connecting' | 'connected';
   error?: string;
-  connect: (secretKey: string) => Promise<void>;
+  connect: () => Promise<void>;
   disconnect: () => void;
 };
 
 export const useWalletStore = create<WalletState>((set) => ({
   status: 'idle',
-  async connect(secretKey: string) {
+  async connect() {
     set({ status: 'connecting', error: undefined });
     try {
-      const account = await getAccountFromSecret(secretKey);
-      const contract = getWritableContract(account);
+      const provider = await connectMassaStationAccount();
+      const contract = getContractFromProvider(provider);
       set({
-        account,
+        provider,
         contract,
-        address: account.address.toString(),
+        address: provider.address,
         status: 'connected',
       });
-      localStorage.setItem('autosplit:sk', secretKey);
+      localStorage.setItem(LOCAL_STORAGE_KEY, 'massa-station');
     } catch (error) {
       set({
-        account: undefined,
+        provider: undefined,
         contract: undefined,
+        address: undefined,
         status: 'idle',
         error: (error as Error).message,
       });
@@ -40,9 +43,9 @@ export const useWalletStore = create<WalletState>((set) => ({
     }
   },
   disconnect() {
-    localStorage.removeItem('autosplit:sk');
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
     set({
-      account: undefined,
+      provider: undefined,
       contract: undefined,
       address: undefined,
       status: 'idle',
@@ -52,13 +55,13 @@ export const useWalletStore = create<WalletState>((set) => ({
 }));
 
 export function restoreWalletSession() {
-  const secret = localStorage.getItem('autosplit:sk');
-  if (!secret) return;
+  const wantsAutoConnect = localStorage.getItem(LOCAL_STORAGE_KEY);
+  if (!wantsAutoConnect) return;
   const { connect, status } = useWalletStore.getState();
-  if (status === 'connected') return;
-  connect(secret).catch(() => {
+  if (status === 'connected' || status === 'connecting') {
+    return;
+  }
+  connect().catch(() => {
     useWalletStore.getState().disconnect();
   });
 }
-
-

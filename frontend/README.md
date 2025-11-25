@@ -38,10 +38,15 @@ npm run lint         # eslint + @typescript-eslint
 
 ## Wallet usage
 
-This demo targets hackathon flows: connect using a buildnet **secret key** (burner only!) through the
-glass widget in the header. The key is stored locally so you stay logged in between refreshes.
+AutoSplit now talks directly to **Massa Station** via `@massalabs/wallet-provider`.
 
-For production you can swap the wallet adapter with Massa Station or a browser extension.
+1. Install [Massa Station](https://station.massa/) and enable the “Massa Wallet” plugin.
+2. Switch the wallet to the Buildnet network and make sure at least one account exists.
+3. Open the dApp and click **Connect Massa Station** – the app auto-detects the running wallet and
+   requests the first available account.
+
+No private keys are ever pasted into the UI anymore. The dApp remembers that you prefer Massa Station
+and silently reconnects on refresh as long as Station keeps running.
 
 ## Project layout
 

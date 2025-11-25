@@ -1,62 +1,60 @@
-import { FormEvent, useState } from 'react';
+import { useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import { shortAddress } from '../../lib/parsers';
 import { useWalletStore } from '../../hooks/useWalletStore';
+
+const STATION_URL = 'https://station.massa/';
 
 export default function WalletConnectBar() {
   const { status, address, connect, disconnect, error } =
     useWalletStore();
-  const [secret, setSecret] = useState('');
-  const [expanded, setExpanded] = useState(false);
+  const [localError, setLocalError] = useState<string>();
 
   const isConnected = status === 'connected' && !!address;
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!secret.trim()) return;
-    await connect(secret.trim());
-    setSecret('');
-    setExpanded(false);
+  const handleConnect = async () => {
+    setLocalError(undefined);
+    try {
+      await connect();
+    } catch (err) {
+      setLocalError((err as Error).message);
+    }
   };
 
   return (
     <div className="glass relative rounded-2xl px-4 py-3 text-sm shadow-card">
       {!isConnected ? (
-        <div>
+        <div className="space-y-3">
           <button
-            className="rounded-full bg-gradient-to-r from-aurora to-sunset px-4 py-2 text-sm font-semibold text-night shadow-lg transition hover:scale-[1.01]"
-            onClick={() => setExpanded((prev) => !prev)}
+            className="flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-aurora to-sunset px-4 py-2 text-sm font-semibold text-night shadow-lg transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={handleConnect}
+            disabled={status === 'connecting'}
           >
-            {status === 'connecting' ? 'Connecting…' : 'Connect Wallet'}
+            {status === 'connecting' ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Connecting…
+              </>
+            ) : (
+              'Connect Massa Station'
+            )}
           </button>
-          {expanded && (
-            <form
-              onSubmit={handleSubmit}
-              className="mt-3 flex flex-col gap-2 text-xs text-white/80"
+          <p className="text-xs text-white/60">
+            Requires{' '}
+            <a
+              href={STATION_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="text-aurora underline underline-offset-2"
             >
-              <label className="text-white/60">
-                Paste your buildnet secret key (test wallets only)
-              </label>
-              <input
-                type="password"
-                className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-white placeholder:text-white/40 focus:border-aurora focus:outline-none"
-                value={secret}
-                onChange={(event) => setSecret(event.target.value)}
-                placeholder="AU..."
-              />
-              <p className="text-white/40">
-                Keys are stored locally. Use burner keys only.
-              </p>
-              <button
-                type="submit"
-                className="rounded-full bg-white/90 px-3 py-1.5 font-semibold text-night"
-                disabled={status === 'connecting'}
-              >
-                Connect
-              </button>
-              {error && (
-                <span className="text-red-400">Error: {error}</span>
-              )}
-            </form>
+              Massa Station
+            </a>{' '}
+            with the Massa Wallet plugin enabled on buildnet.
+          </p>
+          {(error || localError) && (
+            <p className="text-xs text-red-400">
+              {localError ?? error}
+            </p>
           )}
         </div>
       ) : (
@@ -78,5 +76,3 @@ export default function WalletConnectBar() {
     </div>
   );
 }
-
-

@@ -1,5 +1,4 @@
 import {
-  Account,
   Args,
   ArrayTypes,
   JsonRpcProvider,
@@ -7,7 +6,14 @@ import {
   Mas,
   SmartContract,
   bytesToStr,
+  type Provider,
 } from '@massalabs/massa-web3';
+import {
+  WalletName,
+  getWallet,
+  isMassaStationAvailable,
+  isMassaWalletEnabled,
+} from '@massalabs/wallet-provider';
 import { appConfig } from './config';
 import type {
   Payment,
@@ -69,14 +75,43 @@ export async function fetchConfig(): Promise<{
   return JSON.parse(bytesToStr(res.value)) as { owner: string };
 }
 
-export async function getAccountFromSecret(
-  secretKey: string,
-): Promise<Account> {
-  return Account.fromPrivateKey(secretKey.trim());
+async function ensureMassaStationReady() {
+  const stationAvailable = await isMassaStationAvailable();
+  if (!stationAvailable) {
+    throw new Error(
+      'Massa Station is not running. Please launch Massa Station and try again.',
+    );
+  }
+
+  const walletEnabled = await isMassaWalletEnabled();
+  if (!walletEnabled) {
+    throw new Error(
+      'Massa Wallet plugin not detected. Enable the wallet inside Massa Station.',
+    );
+  }
 }
 
-export function getWritableContract(account: Account) {
-  const provider = JsonRpcProvider.buildnet(account);
+export async function connectMassaStationAccount(): Promise<Provider> {
+  await ensureMassaStationReady();
+  const wallet = await getWallet(WalletName.MassaWallet);
+  if (!wallet) {
+    throw new Error('Unable to find Massa Station wallet provider.');
+  }
+
+  await wallet.connect();
+  const accounts = await wallet.accounts();
+  if (!accounts.length) {
+    throw new Error('No accounts found in Massa Station.');
+  }
+  return accounts[0];
+}
+
+export function getContractFromProvider(provider: Provider) {
+  if (!appConfig.contractAddress) {
+    throw new Error(
+      'Missing contract address. Set VITE_AUTOSPLIT_ADDRESS in your .env file.',
+    );
+  }
   return new SmartContract(provider, appConfig.contractAddress);
 }
 
