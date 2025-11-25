@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { QRCodeSVG } from 'qrcode.react';
 import {
   addMemberMutation,
   createProposalMutation,
@@ -29,6 +30,7 @@ export default function OwnerDashboard() {
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(
     null,
   );
+  const [isQrOpen, setIsQrOpen] = useState(false);
   const [teamForm, setTeamForm] = useState<CreateTeamInput>({
     name: '',
     description: '',
@@ -43,6 +45,9 @@ export default function OwnerDashboard() {
     role: '',
     percentage: 0,
   });
+  const [bulkMembers, setBulkMembers] = useState('');
+  const [bulkEqualSplit, setBulkEqualSplit] = useState(true);
+  const [bulkPending, setBulkPending] = useState(false);
   const [proposalForm, setProposalForm] = useState<ProposalInput>({
     teamId: '',
     reason: '',
@@ -57,9 +62,14 @@ export default function OwnerDashboard() {
     enabled: !!address,
   });
 
-  const teams = teamsQuery.data ?? [];
+  const teams = useMemo(() => teamsQuery.data ?? [], [teamsQuery.data]);
   const currentTeamId =
     selectedTeamId ?? teams[0]?.id ?? memberForm.teamId ?? null;
+
+  const currentTeam = useMemo(
+    () => teams.find((t) => t.id === currentTeamId) ?? null,
+    [teams, currentTeamId],
+  );
 
   const paymentsQuery = useQuery({
     queryKey: queryKeys.payments(currentTeamId ?? '0'),
@@ -81,10 +91,13 @@ export default function OwnerDashboard() {
         tags: teamForm.tags,
       });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.ownerTeams(address ?? 'unknown'),
       });
+      const res = await teamsQuery.refetch();
+      const newest = res.data?.[res.data.length - 1];
+      if (newest?.id) setSelectedTeamId(newest.id);
       setTeamForm({
         name: '',
         description: '',
@@ -362,6 +375,118 @@ export default function OwnerDashboard() {
                 {addMember.isPending ? 'Saving…' : 'Add member'}
               </button>
             </form>
+            <div className="mt-8">
+              <h4 className="text-sm font-semibold text-white">Bulk add members</h4>
+              <p className="text-xs text-white/50">wallet:role per line. Enable equal split to auto-assign percentages.</p>
+              <textarea
+                rows={5}
+                placeholder="A1:Manager\nB1:Editor\nC1:Designer"
+                className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white focus:border-aurora focus:outline-none"
+                value={bulkMembers}
+                onChange={(e) => setBulkMembers(e.target.value)}
+              />
+              <div className="mt-3 flex items-center justify-between text-xs">
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={bulkEqualSplit}
+                    onChange={(e) => setBulkEqualSplit(e.target.checked)}
+                  />
+                  <span className="text-white/70">Equal split</span>
+                </label>
+                <button
+                  className="rounded-2xl border border-white/20 px-3 py-2 text-white/70 hover:border-white/40 disabled:opacity-40"
+                  disabled={bulkPending || !bulkMembers.trim() || !currentTeamId}
+                  onClick={async () => {
+                    if (!contract || !currentTeamId) return;
+                    const lines = bulkMembers
+                      .split('\n')
+                      .map((l) => l.trim())
+                      .filter(Boolean);
+                    if (!lines.length) return;
+                    setBulkPending(true);
+                    try {
+                      const existingTotal = (currentTeam?.members ?? []).reduce(
+                        (acc, m) => acc + m.percentage,
+                        0,
+                      );
+                      const remaining = 10000 - existingTotal;
+                      const count = lines.length;
+                      const base = bulkEqualSplit
+                        ? Math.floor(remaining / count)
+                        : 0;
+                      let remainder = bulkEqualSplit ? remaining - base * count : 0;
+
+                      for (let i = 0; i < lines.length; i++) {
+                        const [wallet, role] = lines[i]
+                          .split(':')
+                          .map((x) => x.trim());
+                        let pct = bulkEqualSplit ? base : 0;
+                        if (bulkEqualSplit && remainder > 0) {
+                          pct += 1;
+                          remainder -= 1;
+                        }
+                        await addMemberMutation(contract, {
+                          teamId: currentTeamId,
+                          wallet,
+                          role: role || 'Member',
+                          percentage: pct,
+                        });
+                      }
+                      await queryClient.invalidateQueries({
+                        queryKey: queryKeys.ownerTeams(address ?? 'unknown'),
+                      });
+                      setBulkMembers('');
+                    } catch {
+                      console.error('Bulk add failed');
+                    }
+                    setBulkPending(false);
+                  }}
+                >
+                  {bulkPending ? 'Adding…' : 'Bulk add'}
+                </button>
+              </div>
+            </div>
+            {currentTeam && (
+              <div className="mt-6 space-y-3 text-sm text-white/70">
+                <p className="text-xs uppercase tracking-[0.3em] text-white/50">
+                  Current split
+                </p>
+                <p className="font-display text-xl text-white">
+                  {basisPointsToPercent(
+                    currentTeam.members.reduce(
+                      (acc, m) => acc + m.percentage,
+                      0,
+                    ),
+                  ).toFixed(2)}%
+                </p>
+                {currentTeam.members.reduce((acc, m) => acc + m.percentage, 0) !==
+                  10000 && (
+                  <p className="text-xs text-red-300">
+                    Splits must total 10000 basis points (100%).
+                  </p>
+                )}
+                <div className="mt-3 space-y-2">
+                  {currentTeam.members.map((m) => (
+                    <div
+                      key={`${m.wallet}-${m.role}`}
+                      className="rounded-2xl border border-white/10 bg-white/5 p-3"
+                    >
+                      <div className="flex justify-between text-sm text-white">
+                        <span className="font-semibold">{m.role}</span>
+                        <span className="text-aurora">
+                          {basisPointsToPercent(m.percentage).toFixed(2)}%
+                        </span>
+                      </div>
+                      <div className="text-xs text-white/50">{shortAddress(m.wallet)}</div>
+                    </div>
+                  ))}
+                  {!currentTeam.members.length && (
+                    <p className="text-xs text-white/50">No members yet—add the first above.</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           <div className="glass rounded-3xl p-6">
             <h3 className="text-lg font-semibold text-white">
@@ -526,12 +651,112 @@ export default function OwnerDashboard() {
               Toggle status
             </button>
             <button
-              className="rounded-2xl border border-white/20 px-4 py-2 hover:border-white/40"
-              onClick={() => navigator.clipboard.writeText(`/pay/${currentTeamId}`)}
+              className={`rounded-2xl border px-4 py-2 ${
+                currentTeam && currentTeam.members.length > 0 &&
+                currentTeam.members.reduce((acc, m) => acc + m.percentage, 0) === 10000
+                  ? 'border-white/20 hover:border-white/40'
+                  : 'border-white/10 text-white/40 cursor-not-allowed'
+              }`}
+              disabled={
+                !currentTeam ||
+                currentTeam.members.length === 0 ||
+                currentTeam.members.reduce((acc, m) => acc + m.percentage, 0) !== 10000
+              }
+              onClick={() => {
+                const full = `${window.location.origin}/pay/${currentTeamId}`;
+                navigator.clipboard.writeText(full);
+              }}
             >
               Copy pay link
             </button>
+            <button
+              className={`rounded-2xl border px-4 py-2 ${
+                currentTeam && currentTeam.members.length > 0 &&
+                currentTeam.members.reduce((acc, m) => acc + m.percentage, 0) === 10000
+                  ? 'border-white/20 hover:border-white/40'
+                  : 'border-white/10 text-white/40 cursor-not-allowed'
+              }`}
+              disabled={
+                !currentTeam ||
+                currentTeam.members.length === 0 ||
+                currentTeam.members.reduce((acc, m) => acc + m.percentage, 0) !== 10000
+              }
+              onClick={() => setIsQrOpen(true)}
+            >
+              Show QR code
+            </button>
           </div>
+          {currentTeam && (currentTeam.members.length === 0 ||
+            currentTeam.members.reduce((acc, m) => acc + m.percentage, 0) !== 10000) && (
+            <p className="mt-3 text-xs text-white/50">
+              Add members and ensure total split equals 100% to enable sharing.
+            </p>
+          )}
+          {isQrOpen && currentTeam && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
+              <div className="glass w-full max-w-md rounded-3xl p-6 shadow-glass">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-white/50">
+                      Pay link
+                    </p>
+                    <p className="font-display text-xl text-white">
+                      {currentTeam.name}
+                    </p>
+                  </div>
+                  <button
+                    className="rounded-full border border-white/20 px-3 py-1 text-xs text-white/70 hover:text-white"
+                    onClick={() => setIsQrOpen(false)}
+                  >
+                    Close
+                  </button>
+                </div>
+                <div className="flex flex-col items-center gap-4">
+                  <div className="rounded-2xl bg-white p-4">
+                    <QRCodeSVG
+                      value={`${window.location.origin}/pay/${currentTeamId}`}
+                      size={220}
+                      bgColor="#ffffff"
+                      fgColor="#111827"
+                      includeMargin
+                    />
+                  </div>
+                  <div className="w-full space-y-2 text-xs text-white/70">
+                    <div className="break-all rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white">
+                      {`${window.location.origin}/pay/${currentTeamId}`}
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        className="flex-1 rounded-2xl border border-white/20 px-3 py-2 hover:border-white/40"
+                        onClick={() => {
+                          const url = `${window.location.origin}/pay/${currentTeamId}`;
+                          navigator.clipboard.writeText(url);
+                        }}
+                      >
+                        Copy URL
+                      </button>
+                      <button
+                        className="flex-1 rounded-2xl border border-white/20 px-3 py-2 hover:border-white/40"
+                        onClick={() => {
+                          const canvas = document.querySelector(
+                            'canvas',
+                          ) as HTMLCanvasElement | null;
+                          if (!canvas) return;
+                          const data = canvas.toDataURL('image/png');
+                          const link = document.createElement('a');
+                          link.href = data;
+                          link.download = `autosplit-pay-${currentTeamId}.png`;
+                          link.click();
+                        }}
+                      >
+                        Download QR
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </motion.div>
       )}
     </section>
@@ -583,4 +808,3 @@ function InputField({
     </label>
   );
 }
-

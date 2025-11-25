@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Shield, WalletCards } from 'lucide-react';
+import { ArrowRight, Shield, Sparkles } from 'lucide-react';
 
 const heroStats = [
   { label: 'Payments automated', value: '100%' },
@@ -30,6 +30,24 @@ const personas = [
     title: 'Contributors',
     copy:
       'Dashboard with earnings, payment history, and proposal voting baked in.',
+  },
+];
+
+const highlights = [
+  {
+    title: 'Creator Streams',
+    copy:
+      'Every incoming payment updates dashboards instantly, so contributors always know what landed.',
+  },
+  {
+    title: 'On-chain Compliance',
+    copy:
+      'Autonomous smart contracts enforce share rules and voting outcomes—no spreadsheets to argue over.',
+  },
+  {
+    title: 'Analytics & Alerts',
+    copy:
+      'Built-in lifetime stats plus hooks for Discord/webhooks so teams get notified the second funds hit.',
   },
 ];
 
@@ -76,12 +94,6 @@ export default function LandingPage() {
               className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-aurora to-sunset px-6 py-3 font-semibold text-night shadow-lg"
             >
               Launch Owner Dashboard <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              to="/pay/1"
-              className="inline-flex items-center gap-2 rounded-2xl border border-white/20 px-6 py-3 font-semibold text-white/80"
-            >
-              Demo pay experience <WalletCards className="h-4 w-4" />
             </Link>
           </motion.div>
           <motion.div
@@ -146,6 +158,38 @@ export default function LandingPage() {
             <p className="text-white/70">{persona.copy}</p>
           </div>
         ))}
+      </motion.section>
+
+      <motion.section
+        className="glass rounded-3xl p-8 shadow-glass"
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+      >
+        <div className="flex items-center gap-3 text-white">
+          <Sparkles className="h-6 w-6 text-aurora" />
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-white/60">
+              Why builders switch
+            </p>
+            <h3 className="font-display text-2xl">
+              Full-stack automation for Massa teams
+            </h3>
+          </div>
+        </div>
+        <div className="mt-6 grid gap-6 md:grid-cols-3">
+          {highlights.map((highlight) => (
+            <div
+              key={highlight.title}
+              className="rounded-2xl border border-white/10 bg-white/5 p-5 text-white/80"
+            >
+              <h4 className="font-semibold text-white">
+                {highlight.title}
+              </h4>
+              <p className="mt-2 text-sm">{highlight.copy}</p>
+            </div>
+          ))}
+        </div>
       </motion.section>
     </section>
   );

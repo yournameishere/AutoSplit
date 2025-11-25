@@ -117,6 +117,13 @@ export default function PayPage() {
               <div className="text-xs text-white/50">
                 {shortAddress(member.wallet)}
               </div>
+              <div className="mt-2 text-xs text-white/70">
+                {(() => {
+                  const amt = Number(amount || '0');
+                  const share = (amt * member.percentage) / 10000;
+                  return `Est. ${share.toFixed(2)} MASSA`;
+                })()}
+              </div>
             </div>
           ))}
         </div>
@@ -206,4 +213,3 @@ export default function PayPage() {
     </motion.section>
   );
 }
-

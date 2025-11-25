@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import WalletConnectBar from '../wallet/WalletConnectBar';
+import siteLogo from '../../features/images (2).png';
 
 const links = [
   { label: 'Product', href: '/' },
@@ -15,8 +16,8 @@ export default function AppLayout() {
       <div className="hero-glow" />
       <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col px-6 py-8">
         <header className="mb-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-2 font-display text-2xl font-semibold">
-            <span className="h-10 w-10 rounded-full bg-gradient-to-br from-aurora to-sunset shadow-card" />
+          <div className="flex items-center gap-3 font-display text-2xl font-semibold">
+            <img src={siteLogo} alt="AutoSplit" className="h-10 w-10 rounded-lg object-cover" />
             AutoSplit
           </div>
           <nav className="flex flex-wrap items-center gap-4 text-sm uppercase tracking-wide text-white/70">

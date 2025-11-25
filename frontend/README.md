@@ -36,6 +36,11 @@ npm run build        # type-check + production build (already exercised in CI)
 npm run lint         # eslint + @typescript-eslint
 ```
 
+> **Heads up:** every state-changing call (create team/member, proposals, votes)
+> automatically attaches a small 0.05 MASSA fee so there are enough coins to
+> cover datastore writes. Make sure your Massa Station account holds a few
+> buildnet tokens before interacting with the dashboards.
+
 ## Wallet usage
 
 AutoSplit now talks directly to **Massa Station** via `@massalabs/wallet-provider`.

@@ -23,6 +23,7 @@ import type {
 
 const jsonClient = JsonRPCClient.buildnet();
 const readProvider = JsonRpcProvider.buildnet();
+const STORAGE_FEE = Mas.fromString('0.05'); // covers datastore writes per mutation
 
 const readContract = () =>
   new SmartContract(readProvider, appConfig.contractAddress);
@@ -160,7 +161,7 @@ export async function createTeamMutation(
     .addArray(payload.tags ?? [], ArrayTypes.STRING)
     .addString(payload.slug);
 
-  return sc.call('createTeam', args);
+  return sc.call('createTeam', args, { coins: STORAGE_FEE });
 }
 
 export async function addMemberMutation(
@@ -173,7 +174,7 @@ export async function addMemberMutation(
     .addString(payload.role)
     .addU16(BigInt(payload.percentage));
 
-  return sc.call('addMember', args);
+  return sc.call('addMember', args, { coins: STORAGE_FEE });
 }
 
 export async function toggleTeamStatus(
@@ -184,7 +185,7 @@ export async function toggleTeamStatus(
   const args = new Args()
     .addU64(BigInt(teamId))
     .addBool(isActive);
-  return sc.call('setTeamStatus', args);
+  return sc.call('setTeamStatus', args, { coins: STORAGE_FEE });
 }
 
 export async function payTeamMutation(
@@ -217,7 +218,7 @@ export async function createProposalMutation(
       .addU16(BigInt(allocation.percentage));
   });
 
-  return sc.call('createSplitProposal', args);
+  return sc.call('createSplitProposal', args, { coins: STORAGE_FEE });
 }
 
 export async function voteOnProposal(
@@ -228,7 +229,7 @@ export async function voteOnProposal(
   const args = new Args()
     .addU64(BigInt(proposalId))
     .addBool(support);
-  return sc.call('voteOnProposal', args);
+  return sc.call('voteOnProposal', args, { coins: STORAGE_FEE });
 }
 
 export async function executeProposal(
@@ -236,7 +237,7 @@ export async function executeProposal(
   proposalId: string | number,
 ) {
   const args = new Args().addU64(BigInt(proposalId));
-  return sc.call('executeProposal', args);
+  return sc.call('executeProposal', args, { coins: STORAGE_FEE });
 }
 
 export async function sweepProposals(
@@ -244,7 +245,7 @@ export async function sweepProposals(
   teamId: string | number,
 ) {
   const args = new Args().addU64(BigInt(teamId));
-  return sc.call('sweepTeamProposals', args);
+  return sc.call('sweepTeamProposals', args, { coins: STORAGE_FEE });
 }
 
 export { jsonClient };
